@@ -2,4 +2,13 @@
 
 rm -rf ./out/*
 
-python main.py firmware/MERGE_IOT_V22.bin
+for file in firmware/*; do
+    echo "==============================="
+    echo "Executing: python main.py $file"
+    echo "==============================="
+    python main.py $file
+    echo "==============================="
+    echo "End: python main.py $file"
+    echo "==============================="
+    echo
+done
