@@ -49,3 +49,4 @@ DROP TABLE IF EXISTS Detections;
 
 DROP TABLE IF EXISTS ImageFiles;
 '''
+
