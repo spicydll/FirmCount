@@ -16,7 +16,7 @@ class iotDB:
 
         CREATE TABLE Images (
             id blob,
-            man_id blob,
+            man_id int,
             release_date datetime,
             name varchar
         );
@@ -40,7 +40,7 @@ class iotDB:
         CREATE TABLE ImageFiles (
             file_id blob,
             image_id blob,
-            name varchar
+            path varchar
         );
         '''
 
@@ -81,5 +81,33 @@ class iotDB:
             new_man = 'INSERT INTO Manufacturers (name) VALUES (?)'
             self.cur.execute(new_man, name)
             self.cur.commit()
-            return cur.lastrowid
+            return self.cur.lastrowid
+    
+    def newImage(self, signature, man_name, release_date, name):
+        man_id = self.getManufacturer(man_name)
 
+        check_image = 'SELECT id FROM Images WHERE id = ?'
+        self.cur.execute(check_image, signature)
+        row = self.cur.fetchone()
+
+        if (row is not None):
+            return False
+        else:
+            new_image = 'INSERT INTO Images (id, man_id, release_date, name) VALUES (?, ?, ?, ?)'
+            self.cur.execute(new_image, signature, man_id, release_date, name)
+            self.cur.commit()
+            return True
+
+
+    def getFile(self, signature):
+        check_file = 'SELECT id FROM Files WHERE id = ?'
+        self.cur.execute(check_file, signature)
+        row = self.cur.fetchone()
+
+        if (row is not None):
+            return True
+        else 
+            new_file = 'INSERT INTO Files VALUES (?)'
+            self.cur.execute(new_file, signature)
+            self.cur.commit()
+            return False
