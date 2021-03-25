@@ -1,0 +1,13 @@
+This is how I see this project being structured
+
+database object/module:
+    handles storing/accessing data in the sqlite database file
+
+scanner object/module:
+    handles scanning and hashing of files
+    relies on the database module to determine if something has been scanned before
+
+spider object/module:
+    finds firmware images to analyze on the internet
+    can be run independantly
+

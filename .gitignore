@@ -1,4 +1,5 @@
 firmware/*
 .vscode/**
-env
+env/**
 out/**
+__pycache__/**
