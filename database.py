@@ -25,13 +25,18 @@ class iotDB:
 
         CREATE TABLE Images (
             id              varchar     PRIMARY KEY NOT NULL,
-            man_id          integer     NOT NULL,
+            man_id          integer,
             release_date    datetime    NOT NULL,
-            name            varchar     NOT NULL
+            name            varchar     NOT NULL,
+
+            CONSTRAINT fk_mans
+                FOREIGN KEY (man_id)
+                REFERENCES Manufacturers(id)
+                ON DELETE SET NULL
         );
 
         CREATE TABLE Files (
-            id              varchar     PRIMARY KEY NOT NULL
+            id              varchar     PRIMARY KEY NOT NULL,
             scanned         integer     DEFAULT 0
         );
 
@@ -42,15 +47,39 @@ class iotDB:
         );
 
         CREATE TABLE Detections (
-            func_id         integer     PRIMARY KEY NOT NULL,
-            file_id         varchar     PRIMARY KEY NOT NULL,
-            call_loc        blob        PRIMARY KEY NOT NULL
+            func_id         integer     NOT NULL,
+            file_id         varchar     NOT NULL,
+            call_loc        integer     NOT NULL,
+
+            PRIMARY KEY(func_id, file_id, call_loc),
+
+            CONSTRAINT fk_funcs
+                FOREIGN KEY (func_id)
+                REFERENCES Functions(id)
+                ON DELETE CASCADE,
+
+            CONSTRAINT fk_files
+                FOREIGN KEY (file_id)
+                REFERENCES Files(id)
+                ON DELETE CASCADE
         );
 
         CREATE TABLE ImageFiles (
-            file_id         varchar     PRIMARY KEY NOT NULL,
-            image_id        varchar     PRIMARY KEY NOT NULL,
-            path            varchar     PRIMARY KEY NOT NULL
+            file_id         varchar,
+            image_id        varchar NOT NULL,
+            path            varchar NOT NULL,
+
+            PRIMARY KEY(file_id, image_id, path)
+
+            CONSTRAINT fk_images
+                FOREIGN KEY (image_id)
+                REFERENCES Images(id)
+                ON DELETE CASCADE,
+            
+            CONSTRAINT fk_files
+                FOREIGN KEY (file_id)
+                REFERENCES Files(id)
+                ON DELETE SET NULL
         );
         '''
 
@@ -86,22 +115,22 @@ class iotDB:
 
     def getManufacturer(self, name):
         check_man = 'SELECT id FROM Manufacturers WHERE name = ?'
-        self.cur.execute(check_man, name)
+        self.cur.execute(check_man, (name,))
         row = self.cur.fetchone()
 
         if (row is not None):
             return row['id']
         else:
             new_man = 'INSERT INTO Manufacturers (name) VALUES (?)'
-            self.cur.execute(new_man, name)
-            self.cur.commit()
+            self.cur.execute(new_man, (name,))
+            self.con.commit()
             return self.cur.lastrowid
     
     def newImage(self, signature, man_name, release_date, name):
         man_id = self.getManufacturer(man_name)
 
         check_image = 'SELECT id FROM Images WHERE id = ?'
-        self.cur.execute(check_image, signature)
+        self.cur.execute(check_image, (signature,))
         row = self.cur.fetchone()
 
         if (row is not None):
@@ -109,7 +138,7 @@ class iotDB:
         else:
             new_image = 'INSERT INTO Images (id, man_id, release_date, name) VALUES (?, ?, ?, ?)'
             self.cur.execute(new_image, (signature, man_id, release_date, name))
-            self.cur.commit()
+            self.con.commit()
             return True
 
 
@@ -120,13 +149,13 @@ class iotDB:
         If it does, return True if scanned value on file == 1
         """
         check_file = 'SELECT * FROM Files WHERE id = ?'
-        self.cur.execute(check_file, signature)
+        self.cur.execute(check_file, [signature])
         row = self.cur.fetchone()
 
         if (row is None):
             new_file = 'INSERT INTO Files (id) VALUES (?)'
-            self.cur.execute(new_file, signature)
-            self.cur.commit()
+            self.cur.execute(new_file, (signature,))
+            self.con.commit()
             return False # File didn't exist == not scanned
 
         return row['scanned'] == 1 # True if scanned, False otherwise
@@ -136,7 +165,8 @@ class iotDB:
         """
         Creates a new ImageFile entry
         Returns boolean based on if file is marked as scanned already
-        Does NOT check if file already exists
+        Attempts to Add new entry unconditionally
+            (this is fine as long as all entries are removed after a failed/repeated scan)
         """
 
         # get previous file
@@ -144,10 +174,48 @@ class iotDB:
 
         new_imagefile = 'INSERT INTO ImageFiles (image_id, file_id, path) VALUES (?, ?, ?)'
         self.cur.execute(new_imagefile, (image_signature, file_signature, path))
-        self.cur.commit()
+        self.con.commit()
 
         return file_scanned
 
+    def getAllVulnFunctions(self):
+        
+        select_allfuncs = 'SELECT name FROM Functions'
+        self.cur.execute(select_allfuncs)
+
+        return self.cur.fetchall()
+
+    # function is just function name, not including 'sym.imp'
+    def addVulnFunction(self, name, desc=None):
+        new_func = 'INSERT INTO Functions (name, desc) VALUES (?, ?)'
+        self.cur.execute(new_func, (name, desc))
+        self.con.commit()
+
+    def getFuncIdByFullName(self, func):
+        get_func = 'SELECT id FROM Functions WHERE name = ?'
+
+        # sym.imp.
+        len_to_trim = len('sym.imp.')
+        func = func[len_to_trim:]
+
+        self.cur.execute(get_func, [func])
+
+        return self.cur.fetchone()['id']
+
+    def insertDetections(self, file_signature, detections):
+        insert_det = 'INSERT INTO Detections (func_id, file_id, call_loc) VALUES (?, ?, ?)'
+
+        new_detections = []
+
+        for func in detections:
+            func_id = self.getFuncIdByFullName(func)
+            for location in detections[func]:
+                new_detections.append((func_id, file_signature, location))
+
+        self.cur.executemany(insert_det, new_detections)
+        self.con.commit()
+        
+        
     """
     def getFiles(self, signatures):
         #""
@@ -164,6 +232,6 @@ class iotDB:
         
         new_file = 'INSERT INTO Files VALUES (?)'
         self.cur.executemany(new_file, files_to_scan)
-        self.cur.commit()
+        self.con.commit()
         return files_to_scan
     """

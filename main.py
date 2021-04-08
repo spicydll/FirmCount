@@ -2,6 +2,8 @@
 
 import scanner
 import sys
+from datetime import datetime
+import argparse
 
 """
 def doExtraction(file):
@@ -23,14 +25,18 @@ def scanForFunc(file):
            print(f)
 #        for f in funcs:
 #            print(f['name'])
-#            print(f) 
+#            print(f)
 
 """
 
 def main():
-    scanner.scanImage(sys.argv[1])
-    #scanForFunc('out/_c7v5_[20201120-rel50406]_2020-11-20_14.00.44.bin.extracted/squashfs-root/usr/bin/ledcli')
-  #  scanForFunc()
+   # s = scanner.thread()
+   # s.invokeReinit()
+
+    p = argparse.ArgumentParser(description='Scans IoT Firmware for "Spicy" functions')
+    
+
+    #scanner.scanFile('bruh', ['sym.imp.printf', 'sym.imp.puts'])
 
 if __name__ == "__main__":
     main()
