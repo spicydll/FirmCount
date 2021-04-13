@@ -14,6 +14,7 @@ class iotDB:
     def __init__(self):
         self.database = 'iotcount.db'
         self.con = sqlite3.connect(self.database)
+        self.con.row_factory = sqlite3.Row
         self.cur = self.con.cursor()
 
     def create(self):
@@ -115,7 +116,7 @@ class iotDB:
 
     def getManufacturer(self, name):
         check_man = 'SELECT id FROM Manufacturers WHERE name = ?'
-        self.cur.execute(check_man, (name,))
+        self.cur.execute(check_man, [name])
         row = self.cur.fetchone()
 
         if (row is not None):
@@ -172,11 +173,24 @@ class iotDB:
         # get previous file
         file_scanned = self.checkFileScanned(file_signature)
 
-        new_imagefile = 'INSERT INTO ImageFiles (image_id, file_id, path) VALUES (?, ?, ?)'
-        self.cur.execute(new_imagefile, (image_signature, file_signature, path))
-        self.con.commit()
+        try:
+            new_imagefile = 'INSERT INTO ImageFiles (image_id, file_id, path) VALUES (?, ?, ?)'
+            self.cur.execute(new_imagefile, (image_signature, file_signature, path))
+            self.con.commit()
+        except sqlite3.IntegrityError:
+            # since file is marked existing and not scanned, we need scan it yet
+            return file_scanned
 
         return file_scanned
+
+    def setFileScanned(self, file_signature, value=1):
+        """
+        Sets the file provided as scanned
+        """
+
+        update_file = 'UPDATE Files SET scanned = ? WHERE id = ?'
+        self.cur.execute(update_file, [value, file_signature])
+        self.con.commit()
 
     def getAllVulnFunctions(self):
         
@@ -187,7 +201,7 @@ class iotDB:
 
     # function is just function name, not including 'sym.imp'
     def addVulnFunction(self, name, desc=None):
-        new_func = 'INSERT INTO Functions (name, desc) VALUES (?, ?)'
+        new_func = 'INSERT INTO Functions (name, vuln_desc) VALUES (?, ?)'
         self.cur.execute(new_func, (name, desc))
         self.con.commit()
 
@@ -202,7 +216,7 @@ class iotDB:
 
         return self.cur.fetchone()['id']
 
-    def insertDetections(self, file_signature, detections):
+    def insertDetections(self, file_signature, detections, markscanned=True):
         insert_det = 'INSERT INTO Detections (func_id, file_id, call_loc) VALUES (?, ?, ?)'
 
         new_detections = []
@@ -214,6 +228,9 @@ class iotDB:
 
         self.cur.executemany(insert_det, new_detections)
         self.con.commit()
+
+        if (markscanned):
+            self.setFileScanned(file_signature)
         
         
     """

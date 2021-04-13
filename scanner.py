@@ -4,7 +4,9 @@ import database
 import hashlib
 from os import walk
 from os.path import join
+import shutil
 from pprint import pprint # for debug stuff
+import progressbar
 
 # Might rename class to scanner, especially if multithreading is not achieved
 # Contains all instance specific stuff
@@ -17,27 +19,36 @@ class thread:
 
     def scanImage(self, image_path, man_name, release_date, name):
         # extract
-        signature,work_path = doExtraction(image_path)
+        try:
+            signature,work_path = doExtraction(image_path)
 
-        funcs_to_scan = self.getFuncsToScanFor_Formatted()
+            funcs_to_scan = self.getFuncsToScanFor_Formatted()
 
-        # report extraction
-        self.db.newImage(signature, man_name, release_date, name)
+            # report extraction
+            self.db.newImage(signature, man_name, release_date, name)
 
-        # walk extracted files
-        files = []
-        for root, _, f in walk(work_path):
-            for item in f:
-                files.append(join(root, item))
+            # walk extracted files
+            files = []
+            for root, _, f in walk(work_path):
+                for item in f:
+                    files.append(join(root, item))
 
-        for file in files:
-            if (fileCheck is not False):
-                file_signature = fileCheck
-                is_scanned = self.db.checkImageFileScanned(signature, file_signature, file)
+            with progressbar.ProgressBar(max_value=len(files), redirect_stdout=True) as p:
+                p.start()
+                for i, file in enumerate(files):
+                    p.update(i)
+                    check, r = fileCheck(file)
+                    if (check is not False):
+                        file_signature = check
+                        is_scanned = self.db.checkImageFileScanned(signature, file_signature, file)
 
-                if (not is_scanned):
-                    detections = scanFile(file, funcs_to_scan)
-                    self.db.insertDetections(file_signature, detections)
+                        if (not is_scanned):
+                            print('\nScanning: "{0}"'.format(file))
+                            detections = scanFile(file, funcs_to_scan, r)
+                            self.db.insertDetections(file_signature, detections)
+                p.finish()
+        finally:
+            shutil.rmtree('out/')
     
     def getFuncsToScanFor_Formatted(self):
         functions = self.db.getAllVulnFunctions()
@@ -49,32 +60,34 @@ class thread:
 
 # checks if file is elf and returns its signature
 def fileCheck(path):
-    r = r2pipe.open(path)
-    r.cmd('aaa')
+    try:
+        r = r2pipe.open(path, flags=['-2'])
+            #r.cmd('aaa')
 
-    # check if file type is elf or elf64
-    # return False if not
-    file_type = r.cmdj('ij')['core']['format']
-    r.close()
-    if ('elf' not in file_type):
-        return False
-    else:
-        return getSignature(path)
+        # check if file type is elf or elf64
+        # return False if not
+        file_type = r.cmdj('ij')['core']['format']
+        if ('elf' not in file_type):
+            return False, None
+        else:
+            return getSignature(path), r
+    except BrokenPipeError:
+        return False, None
 
 
 # Does not do database stuff !
 # target_funcs should be in sym.imp.<function> format
 # returns False if not an elf file
-def scanFile(path, target_funcs):
+def scanFile(path, target_funcs, radare_obj):
     detections = dict()
-    r = r2pipe.open(path)
+    r = radare_obj
     r.cmd('aaa')
 
     # check if file type is elf or elf64
     # return False if not
     file_type = r.cmdj('ij')['core']['format']
     if ('elf' not in file_type):
-        r.close()
+        #r.close()
         return # maybe do a log here but should be impossible
 
     # Scan for our spicy funtions
@@ -91,7 +104,7 @@ def scanFile(path, target_funcs):
         
     ## debug pprint(detections)
 
-    r.close()
+   # r.close()
     return detections
 
 
