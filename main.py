@@ -112,6 +112,10 @@ def makeargs():
     imglist_sp = imagesubps.add_parser('list', help='List all images in database')
     imglist_sp.set_defaults(act='imglist')
 
+    imgresult_sp = imagesubps.add_parser('result', help='Print results of scan')
+    imgresult_sp.add_argument('name', type=str, help='Name assigned to image in database')
+    imgresult_sp.set_defaults(act='imgresult')
+
     database_sp = cmdsubp.add_parser('db', help='Retrieve data and manage the database')
     dbsubps = database_sp.add_subparsers(help='Database action to perform')
 

@@ -4,9 +4,12 @@ import database
 import hashlib
 from os import walk
 from os.path import join
+from os.path import split
+from os.path import islink
 import shutil
 from pprint import pprint # for debug stuff
 import progressbar
+import pdb
 
 # Might rename class to scanner, especially if multithreading is not achieved
 # Contains all instance specific stuff
@@ -29,24 +32,37 @@ class thread:
 
             # walk extracted files
             files = []
+            displayfiles = []
             for root, _, f in walk(work_path):
                 for item in f:
-                    files.append(join(root, item))
+                    full_path = join(root, item)
+                    if (not islink(full_path)):
+                        files.append(full_path)
+                        displayfiles.append(join('/'.join(root.split('/')[3:]), item))
 
             with progressbar.ProgressBar(max_value=len(files), redirect_stdout=True) as p:
                 p.start()
                 for i, file in enumerate(files):
                     p.update(i)
+                    print('Checking: "{}"'.format(displayfiles[i]))
                     check, r = fileCheck(file)
                     if (check is not False):
                         file_signature = check
-                        is_scanned = self.db.checkImageFileScanned(signature, file_signature, file)
+                        is_scanned = self.db.checkImageFileScanned(signature, file_signature, displayfiles[i])
 
                         if (not is_scanned):
-                            print('\nScanning: "{0}"'.format(file))
+                            print('Scanning: "{0}"'.format(displayfiles[i]))
                             detections = scanFile(file, funcs_to_scan, r)
                             self.db.insertDetections(file_signature, detections)
+                            print('Complete: "{}"'.format(displayfiles[i]))
+                        else:
+                            print('Skipping: Previously Scanned')
+                    else:
+                        print('Skipping: Not an ELF')
                 p.finish()
+            
+            print('Results: {}'.format(name))
+            self.db.prettyPrintCursur()
         finally:
             shutil.rmtree('out/')
     
@@ -54,12 +70,14 @@ class thread:
         functions = self.db.getAllVulnFunctions()
         functions_fmt = []
         for func in functions:
-            functions_fmt.append('sym.imp.{}'.format(func))
+            functions_fmt.append('sym.imp.{}'.format(func['name']))
 
         return functions_fmt
 
 # checks if file is elf and returns its signature
 def fileCheck(path):
+    if (islink(path)):
+        return False, None
     try:
         r = r2pipe.open(path, flags=['-2'])
             #r.cmd('aaa')
@@ -72,6 +90,7 @@ def fileCheck(path):
         else:
             return getSignature(path), r
     except BrokenPipeError:
+        r.quit()
         return False, None
 
 
@@ -92,19 +111,20 @@ def scanFile(path, target_funcs, radare_obj):
 
     # Scan for our spicy funtions
     file_imports = r.cmdj('aflj')
-    for func in file_imports:
-        name = func['name']
-        # check if function name one we need to scan
-        if (name in target_funcs):
-            detections[name] = []
-            # check for all calls for our spicy function
-            refs = r.cmdj('axtj@{}'.format(name))
-            for ref in refs:
-                detections[name].append(ref['from'])
+    if file_imports != None:
+        for func in file_imports:
+            name = func['name']
+            # check if function name one we need to scan
+            if (name in target_funcs):
+                detections[name] = []
+                # check for all calls for our spicy function
+                refs = r.cmdj('axtj@{}'.format(name))
+                for ref in refs:
+                    detections[name].append(ref['from'])
         
     ## debug pprint(detections)
 
-   # r.close()
+    r.quit()
     return detections
 
 

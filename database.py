@@ -1,4 +1,5 @@
 import sqlite3
+from prettytable import from_db_cursor
 
 """
 NOTES:
@@ -194,7 +195,7 @@ class iotDB:
 
     def getAllVulnFunctions(self):
         
-        select_allfuncs = 'SELECT name FROM Functions'
+        select_allfuncs = 'SELECT * FROM Functions'
         self.cur.execute(select_allfuncs)
 
         return self.cur.fetchall()
@@ -231,24 +232,34 @@ class iotDB:
 
         if (markscanned):
             self.setFileScanned(file_signature)
-        
-        
-    """
-    def getFiles(self, signatures):
-        #""
-        Takes an array of 
-        #""
 
-        check_file = 'SELECT id FROM Files WHERE id IN ({0})'.format(', '.join('?' for _ in signatures))
+    def detectionSummary(self, image_signature, dofetch=True):
+        #funcs = self.getAllVulnFunctions()
+        # don't know if we need this ^^^
 
-        self.cur.execute(check_file, signatures)
-        scanned_files = self.cur.fetchall()
-
-        for file in signatures:
-            if
+        aggregate_detections = """
+        SELECT f.id AS ID, f.name AS Function, count(*) AS Detections
+        FROM Detections d
+        JOIN Functions f ON
+            f.id == d.func_id
+        JOIN Files file ON
+            file.id = d.file_id
+        JOIN ImageFiles i ON
+            file.id = i.file_id
+        WHERE i.image_id = ?
+        GROUP BY f.id;
+        """
         
-        new_file = 'INSERT INTO Files VALUES (?)'
-        self.cur.executemany(new_file, files_to_scan)
-        self.con.commit()
-        return files_to_scan
-    """
+        self.cur.execute(aggregate_detections, [image_signature])
+        if (dofetch):
+            result = self.cur.fetchall()
+            return result
+
+    def prettyPrintCursur(self):
+        print(from_db_cursor(self.cur))
+
+    def getImageIdFromName(self, name):
+        get_image = 'SELECT id FROM Images WHERE name = ?'
+
+        self.cur.execute(get_image, [name])
+        return self.cur.fetchone()['id']
