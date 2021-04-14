@@ -62,6 +62,7 @@ class thread:
                 p.finish()
             
             print('Results: {}'.format(name))
+            self.db.detectionSummary(signature, False)
             self.db.prettyPrintCursur()
         finally:
             shutil.rmtree('out/')
@@ -120,7 +121,8 @@ def scanFile(path, target_funcs, radare_obj):
                 # check for all calls for our spicy function
                 refs = r.cmdj('axtj@{}'.format(name))
                 for ref in refs:
-                    detections[name].append(ref['from'])
+                    if ref['from'] not in detections[name]:
+                        detections[name].append(ref['from'])
         
     ## debug pprint(detections)
 
@@ -139,5 +141,6 @@ def getSignature(file_path):
 def doExtraction(file_path):
     signature = getSignature(file_path)
     output_dir = "out/{}".format(signature)
-    binwalk.scan(file_path, quiet=True, extract=True, signature=True, directory=output_dir)
+    for _ in binwalk.scan(file_path, matryoshka=True, quiet=True, extract=True, signature=True, directory=output_dir):
+        pass
     return signature,output_dir

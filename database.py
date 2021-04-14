@@ -258,6 +258,14 @@ class iotDB:
     def prettyPrintCursur(self):
         print(from_db_cursor(self.cur))
 
+    def deleteImage(self, image_id):
+        reset_image = """
+        DELETE FROM Images WHERE id = ?
+        """
+
+        self.cur.execute(reset_image, [image_id])
+        self.con.commit()
+
     def getImageIdFromName(self, name):
         get_image = 'SELECT id FROM Images WHERE name = ?'
 

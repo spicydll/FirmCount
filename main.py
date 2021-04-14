@@ -65,12 +65,26 @@ def reinit(args):
             s = scanner.thread()
             s.invokeReinit()
 
+def imgresult(args):
+    s = scanner.thread()
+    id = s.db.getImageIdFromName(args.name)
+    s.db.detectionSummary(id, False)
+    s.db.prettyPrintCursur()
+
+def imgdel(args):
+    if args.force or (input("Delete image? (THIS CANNOT BE UNDONE!) [Y/n]: ").lower() == 'y'):
+        s = scanner.thread()
+        id = s.db.getImageIdFromName(args.name)
+        s.db.deleteImage(id)
+
 def prog_action(arg_obj):
     
     action_switch = {
         'reinit': reinit,
         'scan': scan,
-        'addfunction': addfunction
+        'addfunction': addfunction,
+        'imgresult': imgresult,
+        'imgdel': imgdel
     }
 
     if arg_obj.act in action_switch:
@@ -116,6 +130,11 @@ def makeargs():
     imgresult_sp.add_argument('name', type=str, help='Name assigned to image in database')
     imgresult_sp.set_defaults(act='imgresult')
 
+    imgreset_sp = imagesubps.add_parser('delete', help='Removes all entries associated with this image in the database')
+    imgreset_sp.add_argument('-f', '--force', action='store_true', help='Force delete without confirmation')
+    imgreset_sp.add_argument('name', type=str, help='Name of image to delete')
+    imgreset_sp.set_defaults(act='imgdel')
+
     database_sp = cmdsubp.add_parser('db', help='Retrieve data and manage the database')
     dbsubps = database_sp.add_subparsers(help='Database action to perform')
 
@@ -133,7 +152,7 @@ def main():
     
     result = p.parse_args()
     done = prog_action(result)
-    pprint(done)
+    #pprint(done)
 
     #print()
     #pprint(result)

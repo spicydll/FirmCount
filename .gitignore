@@ -4,3 +4,6 @@ env/**
 out/**
 __pycache__/**
 iotcount.db
+jefferson/**
+sasquatch/**
+ubi_reader/**
