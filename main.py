@@ -38,7 +38,8 @@ def deletefunction(args):
     pass
 
 def listfunctions(args):
-    pass
+    s = scanner.thread()
+    s.db.functionList()
 
 def scan(args):
     
@@ -52,7 +53,7 @@ def scan(args):
             args.date = datetime.strptime(input("Date (YYYY-MM-DD): "), '%Y-%m-%d')
     
     s = scanner.thread()
-    s.scanImage(args.path, args.manufacturer, args.date, args.name)
+    s.scanImage(args.path, args.manufacturer, args.date, args.name, args.no_progress, args.keep_dir)
 
 
 def reinit(args):
@@ -67,15 +68,20 @@ def reinit(args):
 
 def imgresult(args):
     s = scanner.thread()
+    id = s.db.getImageIdByRowNum(args.name)
     id = s.db.getImageIdFromName(args.name)
-    s.db.detectionSummary(id, False)
-    s.db.prettyPrintCursur()
+    s.db.imageSummary(id)
+    s.db.detectionSummary(id)
 
 def imgdel(args):
     if args.force or (input("Delete image? (THIS CANNOT BE UNDONE!) [Y/n]: ").lower() == 'y'):
         s = scanner.thread()
         id = s.db.getImageIdFromName(args.name)
         s.db.deleteImage(id)
+
+def imglist(args):
+    s = scanner.thread()
+    s.db.imageList()
 
 def prog_action(arg_obj):
     
@@ -84,7 +90,9 @@ def prog_action(arg_obj):
         'scan': scan,
         'addfunction': addfunction,
         'imgresult': imgresult,
-        'imgdel': imgdel
+        'imgdel': imgdel,
+        'imglist': imglist,
+        'listfunctions': listfunctions
     }
 
     if arg_obj.act in action_switch:
@@ -118,6 +126,8 @@ def makeargs():
     scan_sp.add_argument('-d', '--date', type=lambda s: datetime.strptime(s, '%Y-%m-%d'), help='Release date of firmware in YYYY-MM-DD')
     scan_sp.add_argument('path', type=str, help='Path to firmware image to scan')
     scan_sp.add_argument('-f', '--force', action='store_true', help='Force no interaction')
+    scan_sp.add_argument('-P', '--no-progress', action='store_false', help='Makes progress bar not cool and stuff')
+    scan_sp.add_argument('-k', '--keep-dir', action='store_true', help='Keep extraction directory after scanning (delete before next scan!)')
     scan_sp.set_defaults(act='scan')
 
     image_sp = cmdsubp.add_parser('image', help='Retrieve and manage image data')
@@ -126,7 +136,7 @@ def makeargs():
     imglist_sp = imagesubps.add_parser('list', help='List all images in database')
     imglist_sp.set_defaults(act='imglist')
 
-    imgresult_sp = imagesubps.add_parser('result', help='Print results of scan')
+    imgresult_sp = imagesubps.add_parser('show', help='Print results of scan')
     imgresult_sp.add_argument('name', type=str, help='Name assigned to image in database')
     imgresult_sp.set_defaults(act='imgresult')
 

@@ -233,12 +233,71 @@ class iotDB:
         if (markscanned):
             self.setFileScanned(file_signature)
 
-    def detectionSummary(self, image_signature, dofetch=True):
+    def functionList(self, print=True):
+        func_list = """
+        SELECT id AS ID, name AS Function, vuln_desc AS Description
+        FROM Functions
+        """
+
+        self.cur.execute(func_list)
+        if (print):
+            self.prettyPrintCursur()
+        else:
+            result = self.cur.fetchall()
+            return result
+
+    """
+    def getImageIdByRowNum(self, rownum):
+        get_image = #""
+        SELECT ROW_NUMBER () OVER (ORDER BY name) rownum, name, id
+        FROM Images
+        WHERE rownum = ?
+        #""
+        self.cur.execute(get_image, [rownum])
+        return self.cur.fetchone()['id']
+    """
+
+    def imageList(self, print=True):
+        image_list = """
+        SELECT
+            i.name AS Name,
+            i.id AS 'SHA256 Signature',
+            m.name AS Manufacturer,
+            i.release_date AS 'Release Date'
+        FROM Images i
+        JOIN Manufacturers m ON
+            i.man_id = m.id
+        """
+
+        self.cur.execute(image_list)
+        if (print):
+            self.prettyPrintCursur()
+        else:
+            result = self.cur.fetchall()
+            return result
+
+    def imageSummary(self, image_signature, print=True):
+        image_summary = """
+        SELECT i.name AS Name, i.id AS 'SHA256 Signature', m.name AS Manufacturer, i.release_date AS 'Release Date'
+        FROM Images i
+        JOIN Manufacturers m ON
+            i.man_id = m.id
+        WHERE i.id = ?
+        """
+
+        self.cur.execute(image_summary, [image_signature])
+        if (print):
+            self.prettyPrintCursur()
+        else:
+            result = self.cur.fetchone()
+            return result
+
+    def detectionSummary(self, image_signature, print=True):
         #funcs = self.getAllVulnFunctions()
         # don't know if we need this ^^^
 
         aggregate_detections = """
-        SELECT f.id AS ID, f.name AS Function, count(*) AS Detections
+        SELECT f.id AS 'Function ID', f.name AS Function, count(*) AS Detections
         FROM Detections d
         JOIN Functions f ON
             f.id == d.func_id
@@ -251,7 +310,9 @@ class iotDB:
         """
         
         self.cur.execute(aggregate_detections, [image_signature])
-        if (dofetch):
+        if (print):
+            self.prettyPrintCursur()
+        else:
             result = self.cur.fetchall()
             return result
 

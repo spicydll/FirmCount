@@ -20,7 +20,7 @@ class thread:
     def invokeReinit(self):
         self.db.reinit()
 
-    def scanImage(self, image_path, man_name, release_date, name):
+    def scanImage(self, image_path, man_name, release_date, name, showprogress=True, keepdir=False):
         # extract
         try:
             signature,work_path = doExtraction(image_path)
@@ -40,7 +40,7 @@ class thread:
                         files.append(full_path)
                         displayfiles.append(join('/'.join(root.split('/')[3:]), item))
 
-            with progressbar.ProgressBar(max_value=len(files), redirect_stdout=True) as p:
+            with progressbar.ProgressBar(max_value=len(files), redirect_stdout=showprogress) as p:
                 p.start()
                 for i, file in enumerate(files):
                     p.update(i)
@@ -62,10 +62,10 @@ class thread:
                 p.finish()
             
             print('Results: {}'.format(name))
-            self.db.detectionSummary(signature, False)
-            self.db.prettyPrintCursur()
+            self.db.detectionSummary(signature, True)
         finally:
-            shutil.rmtree('out/')
+            if not keepdir:
+                shutil.rmtree('out/')
     
     def getFuncsToScanFor_Formatted(self):
         functions = self.db.getAllVulnFunctions()
