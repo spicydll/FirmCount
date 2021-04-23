@@ -59,7 +59,6 @@ class thread:
                             print('Skipping: Previously Scanned')
                     else:
                         print('Skipping: Not an ELF')
-                p.finish()
             
             print('Results: {}'.format(name))
             self.db.detectionSummary(signature, True)

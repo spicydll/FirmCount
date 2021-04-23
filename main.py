@@ -68,7 +68,6 @@ def reinit(args):
 
 def imgresult(args):
     s = scanner.thread()
-    id = s.db.getImageIdByRowNum(args.name)
     id = s.db.getImageIdFromName(args.name)
     s.db.imageSummary(id)
     s.db.detectionSummary(id)
