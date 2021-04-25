@@ -116,6 +116,16 @@ class iotDB:
         self.cur.close()
         self.con.close()
 
+    def setImagePath(self, image_id, scan_path):
+        set_path = """
+        UPDATE Images
+        SET scan_path = ?
+        WHERE id = ?
+        """
+
+        self.cur.execute(set_path, [scan_path,image_id])
+        self.con.commit()
+
     def getManufacturer(self, name):
         check_man = 'SELECT id FROM Manufacturers WHERE name = ?'
         self.cur.execute(check_man, [name])
@@ -316,6 +326,17 @@ class iotDB:
         else:
             result = self.cur.fetchall()
             return result
+
+    def resetScans(self):
+        clear_detections = """
+        DELETE FROM Detections; 
+        VACUUM;
+
+        UPDATE Files SET Scanned = 0;
+        """
+
+        self.cur.executescript(clear_detections)
+        self.con.commit()
 
     def prettyPrintCursur(self):
         print(from_db_cursor(self.cur))
