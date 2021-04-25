@@ -28,8 +28,9 @@ class iotDB:
         CREATE TABLE Images (
             id              varchar     PRIMARY KEY NOT NULL,
             man_id          integer,
-            release_date    datetime    NOT NULL,
+            release_date    datetime    NULL,
             name            varchar     NOT NULL,
+            scan_path       varchar     NULL,
 
             CONSTRAINT fk_mans
                 FOREIGN KEY (man_id)
